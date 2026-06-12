@@ -1,0 +1,77 @@
+// Prisma Schema — BeatVault
+// Run: npx prisma migrate dev --name init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Beat {
+  id          String   @id @default(uuid())
+  title       String
+  genre       String
+  bpm         Int
+  key         String       // e.g. "C# min"
+  duration    String       // e.g. "2:47"
+  description String?
+  moods       String[]     // ["Romantic", "Chill"]
+  
+  // Prices in Naira (kobo stored for Paystack, displayed as Naira)
+  priceMP3    Int          // base price in naira
+  priceWAV    Int          // base + WAV addon
+  priceStems  Int          // base + stems addon
+
+  // Supabase Storage paths
+  artworkUrl     String       // public URL for album art
+  previewUrl     String       // public 60s watermarked MP3 for streaming
+  fullMP3Path    String       // private storage path — unlocked after payment
+  fullWAVPath    String?      // private storage path
+  stemZipPath    String?      // private storage path
+
+  published   Boolean  @default(false)
+  featured    Boolean  @default(false)
+  tag         String?  // "New", "Hot", etc.
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orders      OrderItem[]
+
+  @@index([genre])
+  @@index([published])
+}
+
+model Order {
+  id              String      @id @default(uuid())
+  email           String
+  name            String
+  
+  // Paystack
+  paystackRef     String      @unique
+  paystackStatus  String      @default("pending") // pending | success | failed
+  amountPaid      Int         // in naira
+  
+  downloadToken   String?     @unique  // UUID sent in email for secure download
+  downloadExpiry  DateTime?            // token expires after 48h
+  downloadCount   Int         @default(0)
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  items           OrderItem[]
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String
+  beatId    String
+  license   String  // "MP3" | "WAV" | "STEMS"
+  price     Int     // price at time of purchase
+
+  order     Order   @relation(fields: [orderId], references: [id])
+  beat      Beat    @relation(fields: [beatId], references: [id])
+}
