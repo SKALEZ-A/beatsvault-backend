@@ -9,10 +9,12 @@ const { createClient } = require('@supabase/supabase-js');
 
 const prisma = new PrismaClient();
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY // service role — can sign private bucket URLs
-);
+const supabase = (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)
+  ? createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY // service role — can sign private bucket URLs
+    )
+  : null;
 
 const PRIVATE_BUCKET = 'beat-fulls';
 const SIGNED_URL_EXPIRES_IN = 60 * 5; // 5 minutes — short-lived, single-use style
@@ -20,6 +22,10 @@ const SIGNED_URL_EXPIRES_IN = 60 * 5; // 5 minutes — short-lived, single-use s
 // GET /api/download/:token
 // Returns list of downloadable files for the order
 router.get('/:token', async (req, res) => {
+  if (!supabase) {
+    return res.status(503).json({ error: 'File storage not configured. Please contact support.' });
+  }
+  
   const { token } = req.params;
 
   const order = await prisma.order.findUnique({
