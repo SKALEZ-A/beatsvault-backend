@@ -3,7 +3,9 @@
 
 const { Resend } = require('resend');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY 
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null;
 
 const FROM = `${process.env.EMAIL_FROM_NAME || 'BeatVault'} <${process.env.EMAIL_FROM}>`;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
@@ -13,6 +15,11 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
  * @param {{ to: string, name: string, items: Array, downloadToken: string }} params
  */
 async function sendDownloadEmail({ to, name, items, downloadToken }) {
+  if (!resend) {
+    console.warn('⚠️ Resend not configured. Skipping email send.');
+    return { warning: 'Email service not configured' };
+  }
+  
   const downloadUrl = `${FRONTEND_URL}/download/${downloadToken}`;
 
   const itemRows = items
