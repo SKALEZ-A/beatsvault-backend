@@ -11,10 +11,12 @@ const { createClient } = require('@supabase/supabase-js');
 const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+const supabase = (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)
+  ? createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    )
+  : null;
 
 // Multer — store in memory, then pipe to Supabase
 const upload = multer({
@@ -40,6 +42,9 @@ router.use(adminAuth);
 
 // ── Upload helper ─────────────────────────────────────────
 async function uploadToSupabase(bucket, filePath, buffer, mimetype) {
+  if (!supabase) {
+    throw new Error('Supabase storage not configured');
+  }
   const { data, error } = await supabase.storage
     .from(bucket)
     .upload(filePath, buffer, {
@@ -51,6 +56,9 @@ async function uploadToSupabase(bucket, filePath, buffer, mimetype) {
 }
 
 async function getPublicUrl(bucket, filePath) {
+  if (!supabase) {
+    throw new Error('Supabase storage not configured');
+  }
   const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
   return data.publicUrl;
 }
